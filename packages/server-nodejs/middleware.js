@@ -7,5 +7,7 @@ module.exports = config => router({
   fsRoot: config.fsRoot,
   rootName: config.rootName,
   readOnly: config.readOnly,
+  filter: config.filter,
+  transformer: config.transformer,
   logger: config.logger || logger
 });
