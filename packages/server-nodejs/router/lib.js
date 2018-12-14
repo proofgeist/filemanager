@@ -1,54 +1,47 @@
-'use strict';
+"use strict";
 
-const path = require('path');
-const fs = require('fs-extra');
-const { platform } = require('os');
-const { promisify } = require('util');
-const _isBinaryFile = promisify(require('isbinaryfile'));
-const textExtensions = require('textextensions').concat('gsp');
-const binaryExtensions = require('binaryextensions');
+const path = require("path");
+const fs = require("fs-extra");
+const { platform } = require("os");
+const { promisify } = require("util");
+const _isBinaryFile = promisify(require("isbinaryfile"));
+const textExtensions = require("textextensions").concat("gsp");
+const binaryExtensions = require("binaryextensions");
 
-const getClientIp = require('../utils/get-client-ip');
+const getClientIp = require("../utils/get-client-ip");
 
-const {
-  encode: path2id,
-  decode
-} = require('../utils/id');
+const { encode: path2id, decode } = require("../utils/id");
 
-const {
-  TYPE_FILE,
-  TYPE_DIR
-} = require('../constants');
+const { TYPE_FILE, TYPE_DIR } = require("../constants");
 
-const
-  UNKNOWN_RESOURCE_TYPE_ERROR = 'Unknown resource type',
-
-  ORDER_BY_NAME = 'name',
-  ORDER_BY_MODIFIED_TIME = 'modifiedTime',
+const UNKNOWN_RESOURCE_TYPE_ERROR = "Unknown resource type",
+  ORDER_BY_NAME = "name",
+  ORDER_BY_MODIFIED_TIME = "modifiedTime",
   DEFAULT_ORDER_BY = ORDER_BY_NAME,
-
-  ORDER_DIRECTION_ASC = 'ASC',
-  ORDER_DIRECTION_DESC = 'DESC',
+  ORDER_DIRECTION_ASC = "ASC",
+  ORDER_DIRECTION_DESC = "DESC",
   DEFAULT_ORDER_DIRECTION = ORDER_DIRECTION_ASC;
 
 let fsCaseSensitive;
 
 switch (platform()) {
-  case 'win32':
+  case "win32":
     fsCaseSensitive = false;
     break;
-  case 'darwin': // Mac OS
+  case "darwin": // Mac OS
     // TODO
     fsCaseSensitive = true;
     break;
-  default: // Linux and others.
+  default:
+    // Linux and others.
     fsCaseSensitive = true;
     break;
 }
 
-const getBasenameSorter = caseSensitive => (basenameA, basenameB) => basenameA.localeCompare(basenameB, {
-  sensitivity: caseSensitive && fsCaseSensitive ? 'variant' : 'accent'
-});
+const getBasenameSorter = caseSensitive => (basenameA, basenameB) =>
+  basenameA.localeCompare(basenameB, {
+    sensitivity: caseSensitive && fsCaseSensitive ? "variant" : "accent"
+  });
 
 /**
  * Default sorting order:
@@ -68,13 +61,13 @@ const getSorter = ({
       sameTypeSorter = (itemA, itemB) => basenameSorter(itemA.name, itemB.name);
       break;
     case ORDER_BY_MODIFIED_TIME:
-      sameTypeSorter = (itemA, itemB) => itemA.modifiedTime - itemB.modifiedTime;
+      sameTypeSorter = (itemA, itemB) =>
+        itemA.modifiedTime - itemB.modifiedTime;
       break;
     default:
-      throw Object.assign(
-        new Error(`Invalid order by: ${orderBy}`),
-        { httpCode: 400 }
-      );
+      throw Object.assign(new Error(`Invalid order by: ${orderBy}`), {
+        httpCode: 400
+      });
   }
 
   let swapArgs;
@@ -93,19 +86,16 @@ const getSorter = ({
       );
   }
 
-  return (itemA, itemB) => (itemB.type === TYPE_DIR) - (itemA.type === TYPE_DIR) || sameTypeSorter(...(
-    swapArgs ?
-      [itemB, itemA] :
-      [itemA, itemB]
-  ));
+  return (itemA, itemB) =>
+    (itemB.type === TYPE_DIR) - (itemA.type === TYPE_DIR) ||
+    sameTypeSorter(...(swapArgs ? [itemB, itemA] : [itemA, itemB]));
 };
-
 
 const id2path = id => {
   const userPath = decode(id);
 
-  if (!userPath || typeof userPath !== 'string') {
-    throw new Error('Invalid path, it must be non-empty string');
+  if (!userPath || typeof userPath !== "string") {
+    throw new Error("Invalid path, it must be non-empty string");
   }
 
   if (userPath.charAt(0) !== path.sep) {
@@ -117,7 +107,9 @@ const id2path = id => {
   }
 
   if (userPath.includes(path.sep + path.sep)) {
-    throw new Error(`Invalid path, it must not contain two "${path.sep}" in a row`);
+    throw new Error(
+      `Invalid path, it must not contain two "${path.sep}" in a row`
+    );
   }
 
   return userPath;
@@ -125,15 +117,15 @@ const id2path = id => {
 
 const checkName = name => {
   if (!name) {
-    throw new Error('Name must not be empty');
+    throw new Error("Name must not be empty");
   }
 
-  if (typeof name !== 'string') {
-    throw new Error('Name must be a string');
+  if (typeof name !== "string") {
+    throw new Error("Name must be a string");
   }
 
   if (name.includes(path.sep)) {
-    throw new Error('Unable to create name with forbidden symbols');
+    throw new Error("Unable to create name with forbidden symbols");
   }
 
   return name;
@@ -164,19 +156,23 @@ const getResource = async ({
   } else if (!userBasename && !userParent) {
     userPath = path.sep;
   } else {
-    throw new Error(`Invalid parent ${userParent} and basename ${userBasename}`);
+    throw new Error(
+      `Invalid parent ${userParent} and basename ${userBasename}`
+    );
   }
   /* eslint-enable no-param-reassign */
 
   let parent;
 
-  ([stats, parent] = await Promise.all([ // eslint-disable-line no-param-reassign,prefer-const
+  [stats, parent] = await Promise.all([
+    // eslint-disable-line no-param-reassign,prefer-const
     stats || fs.stat(path.join(config.fsRoot, userPath)),
-    userParent && getResource({
-      config,
-      path: userParent
-    })
-  ]));
+    userParent &&
+      getResource({
+        config,
+        path: userParent
+      })
+  ]);
 
   const resource = {
     id: path2id(userPath),
@@ -215,8 +211,10 @@ const getResource = async ({
 };
 
 const handleError = ({ config, req, res }) => err => {
-  config.logger.error(`Error processing request by ${getClientIp(req)}: ${err}` + '\n' +
-    (err.stack && err.stack.split('\n'))
+  config.logger.error(
+    `Error processing request by ${getClientIp(req)}: ${err}` +
+      "\n" +
+      (err.stack && err.stack.split("\n"))
   );
 
   if (err.httpCode) {
@@ -225,13 +223,13 @@ const handleError = ({ config, req, res }) => err => {
   }
 
   switch (err.code) {
-    case 'ENOENT':
-    case 'ENOTDIR':
-    case 'EISDIR':
+    case "ENOENT":
+    case "ENOTDIR":
+    case "EISDIR":
       res.status(410).end();
       break;
-    case 'EACCES':
-    case 'EPERM':
+    case "EACCES":
+    case "EPERM":
       res.status(403).end();
       break;
     default:
@@ -247,13 +245,16 @@ const isBinaryFile = async filePath => {
   const ext = path.extname(filePath).slice(1);
 
   if (ext) {
-    if (textExtensions.includes(ext)) { return false; }
-    if (binaryExtensions.includes(ext)) { return true; }
+    if (textExtensions.includes(ext)) {
+      return false;
+    }
+    if (binaryExtensions.includes(ext)) {
+      return true;
+    }
   }
 
   return _isBinaryFile(filePath);
-}
-
+};
 
 module.exports = {
   UNKNOWN_RESOURCE_TYPE_ERROR,
@@ -265,4 +266,4 @@ module.exports = {
   handleError,
   isBinaryFile,
   fsCaseSensitive
-}
+};

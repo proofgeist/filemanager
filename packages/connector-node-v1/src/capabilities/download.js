@@ -1,12 +1,12 @@
-import api from '../api';
-import notifUtils from '../utils/notifications';
-import { promptToSaveBlob } from '../utils/download';
-import onFailError from '../utils/onFailError';
-import nanoid from 'nanoid';
-import icons from '../icons-svg';
-import getMess from '../translations';
+import api from "../api";
+import notifUtils from "../utils/notifications";
+import { promptToSaveBlob } from "../utils/download";
+import onFailError from "../utils/onFailError";
+import nanoid from "nanoid";
+import icons from "../icons-svg";
+import getMess from "../translations";
 
-const label = 'download';
+const label = "download";
 
 async function handler(apiOptions, actions) {
   const {
@@ -22,54 +22,86 @@ async function handler(apiOptions, actions) {
 
   const onStart = ({ archiveName, quantity }) => {
     const notifications = getNotifications();
-    const notification = notifUtils.getNotification(notifications, notificationId);
+    const notification = notifUtils.getNotification(
+      notifications,
+      notificationId
+    );
 
     const childElement = {
-      elementType: 'NotificationProgressItem',
+      elementType: "NotificationProgressItem",
       elementProps: {
-        title: getMessage('creatingName', { name: archiveName }),
+        title: getMessage("creatingName", { name: archiveName }),
         progress: 0
       }
     };
 
     const newChildren = notifUtils.addChild(
-      (notification && notification.children) || [], notificationChildId, childElement
+      (notification && notification.children) || [],
+      notificationChildId,
+      childElement
     );
     const newNotification = {
-      title: quantity > 1 ? getMessage('zippingItems', { quantity }) : getMessage('zippingItem'),
+      title:
+        quantity > 1
+          ? getMessage("zippingItems", { quantity })
+          : getMessage("zippingItem"),
       children: newChildren
     };
 
-    const newNotifications = notification ?
-      notifUtils.updateNotification(notifications, notificationId, newNotification) :
-      notifUtils.addNotification(notifications, notificationId, newNotification);
+    const newNotifications = notification
+      ? notifUtils.updateNotification(
+          notifications,
+          notificationId,
+          newNotification
+        )
+      : notifUtils.addNotification(
+          notifications,
+          notificationId,
+          newNotification
+        );
 
     updateNotifications(newNotifications);
   };
 
   const onSuccess = _ => {
     const notifications = getNotifications();
-    const notification = notifUtils.getNotification(notifications, notificationId);
+    const notification = notifUtils.getNotification(
+      notifications,
+      notificationId
+    );
     const notificationChildrenCount = notification.children.length;
     let newNotifications;
 
     if (notificationChildrenCount > 1) {
       newNotifications = notifUtils.updateNotification(
         notifications,
-        notificationId, {
-          children: notifUtils.removeChild(notification.children, notificationChildId)
+        notificationId,
+        {
+          children: notifUtils.removeChild(
+            notification.children,
+            notificationChildId
+          )
         }
       );
     } else {
-      newNotifications = notifUtils.removeNotification(notifications, notificationId);
+      newNotifications = notifUtils.removeNotification(
+        notifications,
+        notificationId
+      );
     }
     updateNotifications(newNotifications);
   };
 
-  const onProgress = (progress) => {
+  const onProgress = progress => {
     const notifications = getNotifications();
-    const notification = notifUtils.getNotification(notifications, notificationId);
-    const child = notifUtils.getChild(notification.children, notificationChildId);
+    const notification = notifUtils.getNotification(
+      notifications,
+      notificationId
+    );
+    const child = notifUtils.getChild(
+      notification.children,
+      notificationChildId
+    );
 
     const newChild = {
       ...child,
@@ -81,8 +113,16 @@ async function handler(apiOptions, actions) {
         }
       }
     };
-    const newChildren = notifUtils.updateChild(notification.children, notificationChildId, newChild);
-    const newNotifications = notifUtils.updateNotification(notifications, notificationId, { children: newChildren });
+    const newChildren = notifUtils.updateChild(
+      notification.children,
+      notificationChildId,
+      newChild
+    );
+    const newNotifications = notifUtils.updateNotification(
+      notifications,
+      notificationId,
+      { children: newChildren }
+    );
     updateNotifications(newNotifications);
   };
 
@@ -91,18 +131,24 @@ async function handler(apiOptions, actions) {
     const quantity = resources.length;
     if (quantity === 1) {
       const { id, name } = resources[0];
-      const downloadUrl = `${apiOptions.apiRoot}/download?items=${id}`;
+      let downloadUrl = `${apiOptions.apiRoot}/download?items=${id}`;
       // check if the file is available and trigger native browser saving prompt
       // if server is down the error will be catched and trigger relevant notification
       await api.getResourceById(apiOptions, id);
+      downloadUrl =
+        downloadUrl + "&token=" + localStorage.getItem("feathers-jwt");
       promptToSaveBlob({ name, downloadUrl });
     } else {
       // multiple resources -> download as a single archive
-      const archiveName = apiOptions.archiveName || 'archive.zip';
+      const archiveName = apiOptions.archiveName || "archive.zip";
       onStart({ archiveName, quantity });
-      const content = await api.downloadResources({ resources, apiOptions, onProgress });
+      const content = await api.downloadResources({
+        resources,
+        apiOptions,
+        onProgress
+      });
       setTimeout(onSuccess, 1000);
-      promptToSaveBlob({ content, name: archiveName })
+      promptToSaveBlob({ content, name: archiveName });
     }
   } catch (err) {
     onFailError({
@@ -111,7 +157,7 @@ async function handler(apiOptions, actions) {
       notificationId,
       updateNotifications
     });
-    console.log(err)
+    console.log(err);
   }
 }
 
@@ -122,16 +168,16 @@ export default (apiOptions, actions) => {
     id: label,
     icon: { svg: icons.fileDownload },
     label: localeLabel,
-    shouldBeAvailable: (apiOptions) => {
+    shouldBeAvailable: apiOptions => {
       const selectedResources = getSelectedResources();
 
       return (
         selectedResources.length > 0 &&
-        !selectedResources.some(r => r.type === 'dir') &&
+        !selectedResources.some(r => r.type === "dir") &&
         selectedResources.every(r => r.capabilities.canDownload)
       );
     },
-    availableInContexts: ['row', 'toolbar'],
+    availableInContexts: ["row", "toolbar"],
     handler: () => handler(apiOptions, actions)
   };
-}
+};
