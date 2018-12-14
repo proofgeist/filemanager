@@ -1,22 +1,16 @@
-'use strict';
+"use strict";
 
-const path = require('path');
-const fs = require('fs-extra');
-const getClientIp = require('../utils/get-client-ip');
+const path = require("path");
+const fs = require("fs-extra");
+const getClientIp = require("../utils/get-client-ip");
 
 const {
   UNKNOWN_RESOURCE_TYPE_ERROR,
   getResource,
   getSorter
-} = require('./lib');
+} = require("./lib");
 
-module.exports = ({
-  config,
-  req,
-  res,
-  handleError,
-  path: userPath
-}) => {
+module.exports = ({ config, req, res, handleError, path: userPath }) => {
   let sorter;
 
   try {
@@ -30,36 +24,46 @@ module.exports = ({
   }
 
   const absPath = path.join(config.fsRoot, userPath);
-  config.logger.info(`Children for ${absPath} requested by ${getClientIp(req)}`);
+  config.logger.info(
+    `Children for ${absPath} requested by ${getClientIp(req)}`
+  );
 
-  return fs.readdir(absPath).
-    then(basenames => Promise.all(
-      basenames.
-        map(
-          basename => getResource({
-            config,
-            parent: userPath,
-            basename
-          }).
-            catch(err => {
-              if (typeof err === 'object' && err.message === UNKNOWN_RESOURCE_TYPE_ERROR) {
+  return fs
+    .readdir(absPath)
+    .then(basenames =>
+      Promise.all(
+        basenames
+          .map(basename =>
+            getResource({
+              config,
+              parent: userPath,
+              basename
+            }).catch(err => {
+              if (
+                typeof err === "object" &&
+                err.message === UNKNOWN_RESOURCE_TYPE_ERROR
+              ) {
                 return null;
               }
 
               throw err;
             })
-        ).
-        filter(resource => resource)
-    ))
+          )
+          .filter(resource => resource)
+      )
+    )
     .then(items => {
-      if (options.filter) return items.filter(options.filter);
+      if (config.filter) return items.filter(config.filter);
       return items;
     })
     .then(items => {
-      if (options.transformer) return transformer(items);
+      if (config.transformer) return config.transformer(items);
       return items;
-    }).
-    then(resources => res.json({
-      items: resources.sort(sorter)
-    })).catch(handleError);
+    })
+    .then(resources =>
+      res.json({
+        items: resources.sort(sorter)
+      })
+    )
+    .catch(handleError);
 };
