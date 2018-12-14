@@ -50,9 +50,16 @@ module.exports = ({
             })
         ).
         filter(resource => resource)
-    )).
+    ))
+    .then(items => {
+      if (options.filter) return items.filter(options.filter);
+      return items;
+    })
+    .then(items => {
+      if (options.transformer) return transformer(items);
+      return items;
+    }).
     then(resources => res.json({
       items: resources.sort(sorter)
-    })).
-    catch(handleError);
+    })).catch(handleError);
 };
