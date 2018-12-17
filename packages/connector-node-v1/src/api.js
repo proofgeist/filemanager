@@ -112,7 +112,7 @@ async function uploadFileToId({
   token
 }) {
   const route = `${apiOptions.apiRoot}/files`;
-  return request("POST", route, { token })
+  return request("POST", route, apiOptions)
     .field("type", "file")
     .field("parentId", parentId)
     .attach("files", file.file, file.name)
