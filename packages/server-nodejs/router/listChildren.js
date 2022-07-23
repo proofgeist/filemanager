@@ -32,32 +32,25 @@ module.exports = ({ config, req, res, handleError, path: userPath }) => {
     .readdir(absPath)
     .then(basenames =>
       Promise.all(
-        basenames
-          .map(basename =>
-            getResource({
-              config,
-              parent: userPath,
-              basename
-            }).catch(err => {
-              if (
-                typeof err === "object" &&
-                err.message === UNKNOWN_RESOURCE_TYPE_ERROR
-              ) {
-                return null;
-              }
-
-              throw err;
-            })
-          )
-          .filter(resource => resource)
+        basenames.map(basename =>
+          getResource({
+            config,
+            parent: userPath,
+            basename
+          }).catch(err => {
+            if (
+              typeof err === "object" &&
+              err.message === UNKNOWN_RESOURCE_TYPE_ERROR
+            ) {
+              return null;
+            }
+            throw err;
+          })
+        )
       )
     )
     .then(items => {
       if (config.filter) return items.filter(config.filter);
-      return items;
-    })
-    .then(items => {
-      if (config.transformer) return config.transformer(items);
       return items;
     })
     .then(resources =>

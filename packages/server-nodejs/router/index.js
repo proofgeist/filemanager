@@ -6,9 +6,18 @@ const bodyParser = require("body-parser");
 const express = require("express");
 const path = require("path");
 
+//need to statically require these for pkg making
+const statResource = require("./statResource");
+const listChildren = require("./listChildren");
+const search = require("./search");
+const renameCopyMove = require("./renameCopyMove");
+const remove = require("./remove");
+const download = require("./download");
+const uploadOrCreate = require("./uploadOrCreate");
+
 const { id2path, handleError } = require("./lib");
 
-module.exports = config => {
+module.exports = (config) => {
   const router = express.Router();
 
   router.use(function(req, res, next) {
@@ -36,70 +45,44 @@ module.exports = config => {
           req,
           res,
           next,
-          handleError: handleError({ config, req, res })
+          handleError: handleError({ config, req, res }),
         },
         getArgs ? getArgs() : {}
       )
     );
   };
 
-  router.param("id", function(req, res, next, id) {
+  router.param("id", function (req, res, next, id) {
     try {
       reqPath = id2path(id);
     } catch (err) {
       return handleError({
         config,
         req,
-        res
+        res,
       })(Object.assign(err, { httpCode: 400 }));
     }
 
     return next();
   });
 
-  router.route("/files/:id/children").get(
-    connect(
-      "./listChildren",
-      _ => ({ path: reqPath })
-    )
-  );
+  router
+    .route("/files/:id/children")
+    .get(connect("./listChildren", (_) => ({ path: reqPath })));
 
-  router.route("/files/:id/search").get(
-    connect(
-      "./search",
-      _ => ({ path: reqPath })
-    )
-  );
+  router
+    .route("/files/:id/search")
+    .get(connect("./search", (_) => ({ path: reqPath })));
 
   router
     .route("/files/:id")
-    .get(
-      connect(
-        "./statResource",
-        _ => ({ path: reqPath })
-      )
-    )
-    .patch(
-      connect(
-        "./renameCopyMove",
-        _ => ({ path: reqPath })
-      )
-    )
-    .delete(
-      connect(
-        "./remove",
-        _ => ({ path: reqPath })
-      )
-    );
+    .get(connect("./statResource", (_) => ({ path: reqPath })))
+    .patch(connect("./renameCopyMove", (_) => ({ path: reqPath })))
+    .delete(connect("./remove", (_) => ({ path: reqPath })));
 
   router
     .route("/files")
-    .get(
-      connect(
-        "./statResource",
-        _ => ({ path: path.sep })
-      )
-    )
+    .get(connect("./statResource", (_) => ({ path: path.sep })))
     .post(connect("./uploadOrCreate"));
 
   router.route("/download").get(connect("./download"));
